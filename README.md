@@ -57,14 +57,14 @@ In this section, we provide an overview of the code and steps taken to identify 
 We begin by loading the MNIST dataset using the fetch_openml method from the sklearn.datasets library. 
 The data and target variables are stored in X and y, respectively.
 
-```
+```python
 # Load MNIST dataset
 mnist = fetch_openml('mnist_784')
 X, y = mnist['data'].to_numpy(), mnist['target']
 ```
 
 The images are then reshaped into column vectors and standardized to have a mean of zero and a standard deviation of one.
-```
+```python
 # Reshape images into column vectors
 X_flattened = X.reshape(X.shape[0], -1)
 
@@ -77,7 +77,7 @@ X_standardized = scaler.fit_transform(X_flattened)
 Next, we perform SVD on the standardized data using NumPy's linalg.svd method. 
 We keep the first 50 dimensions (or modes) for analysis and plot the 9 most important SVD modes as "eigen-digits".
 
-```
+```python
 # Perform SVD
 U, s, Vt = np.linalg.svd(X_standardized, full_matrices=False)
 
@@ -101,7 +101,7 @@ Each of the images represents an "eigen-digit", U, corresponding to one of the 9
 
 We then calculate the number of modes required for good image reconstruction, which is determined by the energy retained by the modes.
 In this case, we choose to retain at least 90% of the energy.
-```
+```python
 # Calculate the number of modes required for good image reconstruction
 energy = np.sum(s**2)
 cumulative_energy = np.cumsum(s**2)
@@ -109,14 +109,14 @@ r = np.argmax(cumulative_energy / energy > 0.9)
 ```
 
 Next, we project the standardized data onto the selected V-modes, which in this case are modes 1, 2, and 4.
-```
+```python
 # Project data onto selected V-modes
 selected_modes = [1, 2, 4]  # Using 1-based indexing
 X_projected = X_standardized @ Vt[([mode - 1 for mode in selected_modes]), :].T
 ```
 
 We also create a 3D scatter plot using the projected data to visualize the distribution of the digits in the reduced feature space.
-```
+```python
 # Create a 3D scatter plot
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -134,7 +134,7 @@ plt.show()
 After performing and analyzing the SVD, we can build a linear classifier using linear discriminant analysis (LDA).
 We'll use the discriminant_analysis.LinearDiscriminantAnalysis package from sklearn. To ensure our classifier is working properly, 
 we can build a linear classifier (LDA) that can reasonable identify/classify/differentiate between just two digits initially: 
-```
+```python
 # Filter the dataset to keep only the digits 4 and 5
 selected_digits = ['4', '5']
 mask = np.isin(y, selected_digits)
@@ -155,7 +155,7 @@ lda = LinearDiscriminantAnalysis()
 lda.fit(X_train, y_train)
 ```
 After performing LDA, we can evaluate the classifier on our untouched test set: 
-```
+```python
 # Evaluate the classifier on the test set
 y_pred = lda.predict(X_test)
 cm = confusion_matrix(y_test, y_pred)
@@ -190,7 +190,7 @@ Accuracy for digit 4: 0.99
 Accuracy for digit 5: 0.99
 ```
 Then, we can expand our LDA to 3 different digits. Arbitrarily, let's choose 0, 1, 2: 
-```
+```python
 # Filter the dataset to keep only the digits 1, 4, and 7
 selected_digits = ['0', '1', '2']
 mask = np.isin(y, selected_digits)
@@ -250,5 +250,114 @@ Accuracy for digit 0: 0.98
 Accuracy for digit 1: 0.74
 Accuracy for digit 2: 0.98
 ```
+Now that we can confirm our LDA works reasonably well, we can completely expand it to try and determine the easiest and most difficult digits to separate. 
+We'll discuss the results later: 
+```python
+digit_pairs = list(itertools.combinations(range(10), 2))
+accuracies = []
+
+for digit_pair in digit_pairs:
+    selected_digits = [str(d) for d in digit_pair]
+    mask = np.isin(y, selected_digits)
+    X_filtered, y_filtered = X[mask], y[mask]
+
+    X_flattened = X_filtered.reshape(X_filtered.shape[0], -1)
+    scaler = StandardScaler()
+    X_standardized = scaler.fit_transform(X_flattened)
+
+    X_train, X_test, y_train, y_test = train_test_split(X_standardized, y_filtered, test_size=0.2, random_state=42)
+
+    lda = LinearDiscriminantAnalysis()
+    lda.fit(X_train, y_train)
+
+    y_pred = lda.predict(X_test)
+    cm = confusion_matrix(y_test, y_pred)
+
+    accuracy_1 = cm[0, 0] / cm[0].sum()
+    accuracy_2 = cm[1, 1] / cm[1].sum()
+    avg_accuracy = (accuracy_1 + accuracy_2) / 2
+
+    accuracies.append(avg_accuracy)
+    print(f"Accuracy for digit pair {digit_pair}: {avg_accuracy:.2f}")
+
+min_index = np.argmin(accuracies)
+max_index = np.argmax(accuracies)
+
+print(f"Most difficult pair to separate: {digit_pairs[min_index]}, accuracy: {accuracies[min_index]:.2f}")
+print(f"Easiest pair to separate: {digit_pairs[max_index]}, accuracy: {accuracies[max_index]:.2f}")
+```
+LDA's and linear classifiers are great, but lets use slightly more sophisticated algorithms. We can develop classifiers using SVM (Support Vector Machines), and Decision Tree Classifiers to test and determine how well they perform: 
+```python
+# Split the dataset into a training and test set
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train and evaluate the SVM classifier
+svm = SVC(kernel='rbf', C=1, random_state=42)
+svm.fit(X_train, y_train)
+y_pred_svm = svm.predict(X_test)
+accuracy_svm = accuracy_score(y_test, y_pred_svm)
+print(f"SVM classifier accuracy: {accuracy_svm:.2f}")
+```
+```python
+# Train and evaluate the Decision Tree classifier
+dtree = DecisionTreeClassifier(random_state=42)
+dtree.fit(X_train, y_train)
+y_pred_dtree = dtree.predict(X_test)
+accuracy_dtree = accuracy_score(y_test, y_pred_dtree)
+print(f"Decision Tree classifier accuracy: {accuracy_dtree:.2f}")
+```
+
+We can face use our SVM and decision tree to separate digits, and compare these results to our LDA: 
+```python 
+def evaluate_classifier_accuracy(classifier, X_train, y_train, X_test, y_test):
+    classifier.fit(X_train, y_train)
+    y_pred = classifier.predict(X_test)
+    cm = confusion_matrix(y_test, y_pred)
+    
+    accuracies = [cm[i, i] / cm[i].sum() for i in range(cm.shape[0])]
+    avg_accuracy = np.mean(accuracies)
+    return avg_accuracy
+
+digit_pairs = list(itertools.combinations(range(10), 2))
+
+svm_accuracies = []
+dtree_accuracies = []
+
+for digit_pair in digit_pairs:
+    selected_digits = [str(d) for d in digit_pair]
+    mask = np.isin(y, selected_digits)
+    X_filtered, y_filtered = X[mask], y[mask]
+
+    X_flattened = X_filtered.reshape(X_filtered.shape[0], -1)
+    scaler = StandardScaler()
+    X_standardized = scaler.fit_transform(X_flattened)
+
+    X_train, X_test, y_train, y_test = train_test_split(X_standardized, y_filtered, test_size=0.2, random_state=42)
+
+    svm = SVC(kernel='rbf', C=1, random_state=42)
+    svm_accuracy = evaluate_classifier_accuracy(svm, X_train, y_train, X_test, y_test)
+    svm_accuracies.append(svm_accuracy)
+
+    dtree = DecisionTreeClassifier(random_state=42)
+    dtree_accuracy = evaluate_classifier_accuracy(dtree, X_train, y_train, X_test, y_test)
+    dtree_accuracies.append(dtree_accuracy)
+
+    print(f"Accuracy for digit pair {digit_pair} - SVM: {svm_accuracy:.2f}, Decision Tree: {dtree_accuracy:.2f}")
+
+svm_min_index = np.argmin(svm_accuracies)
+svm_max_index = np.argmax(svm_accuracies)
+
+dtree_min_index = np.argmin(dtree_accuracies)
+dtree_max_index = np.argmax(dtree_accuracies)
+
+print(f"SVM - Most difficult pair to separate: {digit_pairs[svm_min_index]}, accuracy: {svm_accuracies[svm_min_index]:.2f}")
+print(f"SVM - Easiest pair to separate: {digit_pairs[svm_max_index]}, accuracy: {svm_accuracies[svm_max_index]:.2f}")
+
+print(f"Decision Tree - Most difficult pair to separate: {digit_pairs[dtree_min_index]}, accuracy: {dtree_accuracies[dtree_min_index]:.2f}")
+print(f"Decision Tree - Easiest pair to separate: {digit_pairs[dtree_max_index]}, accuracy: {dtree_accuracies[dtree_max_index]:.2f}")
+```
+We'll discuss the results of this separation in the following section. 
+
+## IV. Computational Results
 
 
