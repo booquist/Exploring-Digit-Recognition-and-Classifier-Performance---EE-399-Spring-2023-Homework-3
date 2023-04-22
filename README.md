@@ -514,3 +514,11 @@ print(f"Predicted digit (image 2) with Decision Tree: {digit2}")
 ```
 Interestingly, I found that the SVM incorrectly classified both the 1 and 2 as 5. However, the decision tree correctly identified both digits. This may be due to severe overfitting on part of the SVM.
 
+## V. Summary and Conclusions
+In this project, we used the MNIST dataset to train and evaluate different classifiers for digit recognition. We first filtered the dataset to include only the digits 0, 1, and 2, and used Linear Discriminant Analysis (LDA) to classify the digits. The results showed high accuracy for 0 and 2, but struggled with 1, only classifying it correctly 74% of the time. <br>
+
+We then used Support Vector Machines (SVM) to classify the entire dataset, achieving an overall accuracy of 98%. We also experimented with decision trees and achieved an accuracy of 87%. <br>
+
+Finally, we evaluated the performance of different classifiers in separating pairs of digits. The results showed that the easiest pair to separate was (0, 1) with 100% accuracy, while the hardest pair was (2, 3) with an accuracy of 95%.<br>
+
+In conclusion, our experiments showed that SVM and LDA are effective classifiers for digit recognition, achieving high accuracy for the MNIST dataset. We also identified the difficulty in separating certain pairs of digits, which can be helpful for future research in improving classification algorithms. Overall, these results demonstrate the potential of machine learning algorithms in recognizing handwritten digits and provide a foundation for further research in this area that later moved the field forward dramatically.
