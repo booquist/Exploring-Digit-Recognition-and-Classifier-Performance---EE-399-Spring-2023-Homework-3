@@ -359,5 +359,158 @@ print(f"Decision Tree - Easiest pair to separate: {digit_pairs[dtree_max_index]}
 We'll discuss the results of this separation in the following section. 
 
 ## IV. Computational Results
+**Singular Value Decomposition (SVD)** <br>
+We performed SVD on the standardized dataset to identify the most important directions in the MNIST dataset. Figure 1 shows the first 9 SVD modes, also known as "eigen-digits".
 
+![image](https://user-images.githubusercontent.com/103399658/233752376-ca728063-4ffb-4e0e-90ff-d026ef6a1a96.png)
+<br>*Figure 1: First 9 SVD modes (eigen-digits)*<br>
+The eigen-digits reveal the underlying structure of the data, highlighting the similarities and differences between digits. For example, SVD Mode 5 appears to capture the "loop" structure of digits like "6" and "9", while SVD Mode 9 captures the "loop" structure of "8". <br>
+
+We also calculated the number of modes required to retain at least 90% of the energy in the dataset, which was found to be 237. We projected the standardized data onto the first 3 SVD modes and created a 3D scatter plot to visualize the distribution of digits in the reduced feature space. Figure 2 shows the resulting plot: 
+
+![image](https://user-images.githubusercontent.com/103399658/233752724-1cd2ffb1-cca5-4f27-9190-aaf0836f4476.png)
+<br>*Figure 2: 3D scatter plot of MNIST digits projected onto the first 3 SVD modes (eigen-digits)*<br>
+
+The plot reveals that different digits *(mostly)* occupy different regions of the reduced feature space, which suggests that they may be separable using machine learning techniques. <br>
+
+Moving on to our LDA, we can finally analyze the results of our three-digit separation, and determine which digits are the most difficult to separate. 
+Starting off with the three-digit separation in the most basic linear classifier, we find: 
+```
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.98      0.98      0.98      1386
+           1       1.00      0.74      0.85      1592
+           2       0.75      0.98      0.85      1376
+
+    accuracy                           0.89      4354
+   macro avg       0.91      0.90      0.89      4354
+weighted avg       0.91      0.89      0.89      4354
+
+Confusion Matrix:
+[[1355    0   31]
+ [   4 1173  415]
+ [  28    5 1343]]
+Accuracy for digit 0: 0.98
+Accuracy for digit 1: 0.74
+Accuracy for digit 2: 0.98
+```
+Looking at the results, we see that the classifier is doing well for digits 0 and 2, with accuracies of 0.98 and 0.98, respectively. However, for digit 1, the accuracy is only 0.74. This suggests that the classifier is having more difficulty distinguishing between 1s and other digits. The overall accuracy of the model is 0.89, which is decent but could be improved. <br>
+Moving on to analyzing which two digits are the most difficult and easiest to separate, we find the following results: 
+```
+Accuracy for digit pair (0, 1): 0.99
+Accuracy for digit pair (0, 2): 0.99
+Accuracy for digit pair (0, 3): 0.99
+...
+Accuracy for digit pair (8, 9): 0.97
+Most difficult pair to separate: (2, 6), accuracy: 0.75
+Easiest pair to separate: (6, 7), accuracy: 1.00
+```
+
+The results show that the model has high accuracy for most digit pairs, with accuracy ranging from 0.97 to 1.00. The most difficult digit pair to separate is (2,6) with an accuracy of 0.75, while the easiest digit pair to separate is (6,7) with an accuracy of 1.00. <br> <br>
+The pair (2, 6) may be difficult to separate because they share similar features, such as loops and curves in their shapes. Specifically, both digits have a loop at the top and a curve at the bottom, making them visually similar. Additionally, the way the loops and curves are shaped may vary depending on the handwriting style, further complicating their separation. This similarity in appearance can make it difficult for a classifier to accurately distinguish between them, resulting in a lower accuracy for this digit pair. <br>
+
+Of course, SVM and decision trees are a much more modern way of doing machine learning, so let's take a look at the results of both: <br>
+**SVM**
+```python
+# Split the dataset into a training and test set
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train and evaluate the SVM classifier
+svm = SVC(kernel='rbf', C=1, random_state=42)
+svm.fit(X_train, y_train)
+y_pred_svm = svm.predict(X_test)
+accuracy_svm = accuracy_score(y_test, y_pred_svm)
+print(f"SVM classifier accuracy: {accuracy_svm:.2f}")
+```
+yields "SVM classifier accuracy: 0.98". <br>
+
+**Decision Tree**
+```python
+# Train and evaluate the Decision Tree classifier
+dtree = DecisionTreeClassifier(random_state=42)
+dtree.fit(X_train, y_train)
+y_pred_dtree = dtree.predict(X_test)
+accuracy_dtree = accuracy_score(y_test, y_pred_dtree)
+print(f"Decision Tree classifier accuracy: {accuracy_dtree:.2f}")
+``` 
+yields "Decision Tree classifier accuracy: 0.87" <br>
+
+As expected, our SVM has a high accuracy of 98% on the test data. Surprisingly, the decision tree only has an accuracy of 87%. However, as we'll see later, 
+it ends up being more generalizable. <br>
+
+Repeating the process of finding the most easily and difficult to separate for SVM and decision trees, we find: 
+```
+Accuracy for digit pair (0, 1) - SVM: 0.99, Decision Tree: 1.00
+Accuracy for digit pair (0, 2) - SVM: 0.99, Decision Tree: 0.98
+...
+Accuracy for digit pair (8, 9) - SVM: 0.99, Decision Tree: 0.97
+SVM - Most difficult pair to separate: (7, 9), accuracy: 0.97
+SVM - Easiest pair to separate: (3, 6), accuracy: 1.00
+Decision Tree - Most difficult pair to separate: (2, 3), accuracy: 0.95
+Decision Tree - Easiest pair to separate: (0, 1), accuracy: 1.00
+```
+Unsurprisingly, both the SVM and decision tree had an easier time separating digits than the LDA, with (2, 3) proving the most difficult for the decision tree. This may because both digits contain a similar hook at the top. <br> 
+
+I attempted to use the SVM and decision tree models to classify my own handwriting: 
+
+![image](https://user-images.githubusercontent.com/103399658/233753822-6fae168f-2700-4c7e-9277-9cb03e1ef783.png)
+![image](https://user-images.githubusercontent.com/103399658/233753836-0640e4f5-b719-441e-ac0f-da0c97ea885f.png)
+
+I implemented this classification using the following code: <br>
+**SVM**
+```python
+from PIL import Image
+
+# Open the image and convert it to grayscale
+image = Image.open("MNIST-test.png").convert("L")
+
+# Resize the image to 28x28 pixels
+resized_image = image.resize((28, 28))
+
+# Flatten the image to a 1D array
+flattened_image = np.array(resized_image).flatten()
+
+# Scale the image using the same scaler used for the training data
+scaled_image = scaler.transform([flattened_image])
+
+# Predict the digit using the SVM
+digit = svm.predict(scaled_image)[0]
+print(f"Predicted digit: {digit}")
+```
+**Decision Tree**
+```python 
+# Open the image and convert it to grayscale
+image = Image.open("MNIST-test.png").convert("L")
+
+# Resize the image to 28x28 pixels
+resized_image = image.resize((28, 28))
+
+# Flatten the image to a 1D array
+flattened_image = np.array(resized_image).flatten()
+
+# Scale the image using the same scaler used for the training data
+scaled_image = scaler.transform([flattened_image])
+
+# Predict the digit using the Decision Tree classifier
+digit = dtree.predict(scaled_image)[0]
+print(f"Predicted digit (image 1) with Decision Tree: {digit}")
+
+# Open the image and convert it to grayscale
+image2 = Image.open("MNIST-test-other.png").convert("L")
+
+# Resize the image to 28x28 pixels
+resized_image2 = image2.resize((28, 28))
+
+# Flatten the image to a 1D array
+flattened_image2 = np.array(resized_image2).flatten()
+
+# Scale the image using the same scaler used for the training data
+scaled_image2 = scaler.transform([flattened_image2])
+
+# Predict the digit using the Decision Tree classifier
+digit2 = dtree.predict(scaled_image2)[0]
+print(f"Predicted digit (image 2) with Decision Tree: {digit2}")
+```
+Interestingly, I found that the SVM incorrectly classified both the 1 and 2 as 5. However, the decision tree correctly identified both digits. This may be due to severe overfitting on part of the SVM.
 
